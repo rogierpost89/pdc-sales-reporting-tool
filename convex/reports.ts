@@ -234,7 +234,8 @@ function getWeekStart(ts: number): number {
 export const generateWeeklySnapshots = action({
   args: {},
   handler: async (ctx, _args) => {
-    const periodStart = getWeekStart(Date.now());
+    // Snapshot the just-completed week (Mon–Sun), not the current week.
+    const periodStart = getWeekStart(Date.now()) - 7 * 24 * 60 * 60 * 1000;
 
     const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
       _id: string;

@@ -12,46 +12,42 @@ crons.weekly(
 );
 
 // ─── Monthly: last day of each month — send monthly notification emails ──────
-// Convex's .monthly() fires on the given day-of-month.
-// Day 28 is the latest day guaranteed to exist in every month (February edge case).
-// triggerMonthly checks isLastDayOfMonth() at runtime and returns early if today
-// is not the true last day, so emails only fire on the actual last day of each month.
-crons.monthly(
+// Fires on days 28-31 so the isLastDayOfMonth() guard inside triggerMonthly can
+// match the true last day of every month (including Feb 28/29, months with 30 or 31 days).
+crons.cron(
   "monthly notification",
-  { day: 28, hourUTC: 9, minuteUTC: 0 },
+  "0 9 28-31 * *",
   anyApi.notifications.triggerMonthly,
   {}
 );
 
-// ─── Quarterly: last month of each quarter (Mar/Jun/Sep/Dec), day 28 ─────────
-// Registered as four separate monthly crons restricted to months 3, 6, 9, 12
-// using crontab syntax: minute hour day-of-month month day-of-week
-// triggerQuarterly checks isLastDayOfMonth() at runtime and returns early if today
-// is not the true last day, ensuring emails fire only on the actual quarter-end day.
+// ─── Quarterly: last day of quarter-end months (Mar/Jun/Sep/Dec) ─────────────
+// Same pattern: fire days 28-31 of each quarter-end month; the guard filters to
+// the true last day at runtime.
 crons.cron(
   "quarterly notification Q1",
-  "0 9 28 3 *",
+  "0 9 28-31 3 *",
   anyApi.notifications.triggerQuarterly,
   {}
 );
 
 crons.cron(
   "quarterly notification Q2",
-  "0 9 28 6 *",
+  "0 9 28-31 6 *",
   anyApi.notifications.triggerQuarterly,
   {}
 );
 
 crons.cron(
   "quarterly notification Q3",
-  "0 9 28 9 *",
+  "0 9 28-31 9 *",
   anyApi.notifications.triggerQuarterly,
   {}
 );
 
 crons.cron(
   "quarterly notification Q4",
-  "0 9 28 12 *",
+  "0 9 28-31 12 *",
   anyApi.notifications.triggerQuarterly,
   {}
 );
