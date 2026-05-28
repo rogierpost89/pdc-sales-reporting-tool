@@ -1,0 +1,11 @@
+@media print {
+  body * { visibility: hidden; }
+  #report-document, #report-document * { visibility: visible; }
+  #report-document {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  @page { margin: 15mm; size: A4; }
+}
