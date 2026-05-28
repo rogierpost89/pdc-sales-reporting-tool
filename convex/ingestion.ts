@@ -126,13 +126,17 @@ export const runIngestionAgent = action({
         return summary;
       }
 
-      // TODO: Route to the correct agent based on source (#18)
-      // Stub for other sources: mark as done immediately
-      await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
-        uploadId: args.uploadId,
-        status: "done",
-        agentUsed: "stub",
-      });
+      // Fallback path: explicit "manual" source, or any unrecognised source.
+      // The manual agent decides which table(s) the data maps to and updates the
+      // upload status itself (done if confidence >= 0.6, failed if below).
+      const summary = await ctx.runAction(
+        anyApi.agents.manualAgent.runManualAgent,
+        {
+          uploadId: args.uploadId,
+          storageId: args.storageId,
+        }
+      );
+      return summary;
     } catch (error) {
       await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
         uploadId: args.uploadId,
