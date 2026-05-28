@@ -110,7 +110,23 @@ export const runIngestionAgent = action({
         return summary;
       }
 
-      // TODO: Route to the correct agent based on source (#17, #18)
+      if (args.source === "pipedrive") {
+        const summary = await ctx.runAction(
+          anyApi.agents.pipedriveAgent.runPipedriveAgent,
+          {
+            uploadId: args.uploadId,
+            storageId: args.storageId,
+          }
+        );
+        await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
+          uploadId: args.uploadId,
+          status: "done",
+          agentUsed: "pipedriveAgent",
+        });
+        return summary;
+      }
+
+      // TODO: Route to the correct agent based on source (#18)
       // Stub for other sources: mark as done immediately
       await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
         uploadId: args.uploadId,
