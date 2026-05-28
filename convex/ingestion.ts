@@ -78,8 +78,24 @@ export const runIngestionAgent = action({
     });
 
     try {
-      // TODO: Route to the correct agent based on source (#15, #16, #17, #18)
-      // Stub: mark as done immediately
+      if (args.source === "exact") {
+        const summary = await ctx.runAction(
+          anyApi.agents.exactAgent.runExactAgent,
+          {
+            uploadId: args.uploadId,
+            storageId: args.storageId,
+          }
+        );
+        await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
+          uploadId: args.uploadId,
+          status: "done",
+          agentUsed: "exactAgent",
+        });
+        return summary;
+      }
+
+      // TODO: Route to the correct agent based on source (#16, #17, #18)
+      // Stub for other sources: mark as done immediately
       await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
         uploadId: args.uploadId,
         status: "done",
