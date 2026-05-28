@@ -7,6 +7,11 @@ export const getSalesMetrics = query({
     period: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const role = (identity as { publicMetadata?: { role?: string } }).publicMetadata?.role;
+    if (role !== "admin") throw new Error("Admin access required");
+
     // Compute cutoff timestamp from period
     const now = Date.now();
     let cutoff = 0;
@@ -102,6 +107,11 @@ export const getActivities = query({
     weekStartTo: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const role = (identity as { publicMetadata?: { role?: string } }).publicMetadata?.role;
+    if (role !== "admin") throw new Error("Admin access required");
+
     // Fetch all brands for id→name map
     const allBrands = await ctx.db.query("brands").collect();
     const brandMap: Record<string, string> = {};
@@ -158,6 +168,11 @@ export const getActivities = query({
 export const getUploads = query({
   args: {},
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const role = (identity as { publicMetadata?: { role?: string } }).publicMetadata?.role;
+    if (role !== "admin") throw new Error("Admin access required");
+
     return ctx.db.query("uploads").order("desc").take(50);
   },
 });
@@ -167,6 +182,11 @@ export const getDeals = query({
     brandId: v.optional(v.id("brands")),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const role = (identity as { publicMetadata?: { role?: string } }).publicMetadata?.role;
+    if (role !== "admin") throw new Error("Admin access required");
+
     // Fetch deals, filtered by brandId if provided
     let records;
     if (args.brandId) {

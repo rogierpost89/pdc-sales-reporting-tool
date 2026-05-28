@@ -1,4 +1,5 @@
 import { actionGeneric as action, anyApi } from "convex/server";
+import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -193,7 +194,7 @@ export const runPipedriveAgent = action({
     );
 
     // 4. Load brands and users for resolution
-    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+    const brands = (await ctx.runQuery(internal.brands.listInternal, {})) as Array<{
       _id: string;
       name: string;
     }>;
@@ -250,7 +251,7 @@ export const runPipedriveAgent = action({
       const count =
         typeof row.count === "number" && row.count > 0 ? row.count : 1;
 
-      await ctx.runMutation(anyApi.activities.insert, {
+      await ctx.runMutation(internal.activities.insert, {
         brandId,
         accountManagerId,
         type: row.type,
@@ -306,7 +307,7 @@ export const runPipedriveAgent = action({
         dealArgs.probability = row.probability;
       }
 
-      await ctx.runMutation(anyApi.deals.insert, dealArgs);
+      await ctx.runMutation(internal.deals.insert, dealArgs);
 
       dealRowsProcessed++;
     }

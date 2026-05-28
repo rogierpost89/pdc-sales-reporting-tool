@@ -1,7 +1,7 @@
-import { mutationGeneric as mutation } from "convex/server";
+import { internalMutationGeneric as internalMutation } from "convex/server";
 import { v } from "convex/values";
 
-export const insert = mutation({
+export const insert = internalMutation({
   args: {
     brandId: v.id("brands"),
     accountManagerId: v.id("users"),

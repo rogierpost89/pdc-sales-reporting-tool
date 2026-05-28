@@ -1,4 +1,5 @@
-import { actionGeneric as action, anyApi } from "convex/server";
+import { actionGeneric as action } from "convex/server";
+import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -169,7 +170,7 @@ export const runWoocommerceAgent = action({
         defaultedToD2c.push(row.orderId ?? `${row.sku}@${row.date}`);
       }
 
-      await ctx.runMutation(anyApi.salesData.insert, {
+      await ctx.runMutation(internal.salesData.insert, {
         source: "woocommerce",
         channel,
         brandId,

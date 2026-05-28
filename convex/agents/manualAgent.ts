@@ -1,4 +1,5 @@
 import { actionGeneric as action, anyApi } from "convex/server";
+import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -264,7 +265,7 @@ export const runManualAgent = action({
     }
 
     // 4. Load brands and users — needed for resolution.
-    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+    const brands = (await ctx.runQuery(internal.brands.listInternal, {})) as Array<{
       _id: string;
       name: string;
     }>;
@@ -370,7 +371,7 @@ export const runManualAgent = action({
             continue;
           }
 
-          await ctx.runMutation(anyApi.salesData.insert, {
+          await ctx.runMutation(internal.salesData.insert, {
             source: "manual",
             channel,
             brandId,
@@ -441,7 +442,7 @@ export const runManualAgent = action({
             continue;
           }
 
-          await ctx.runMutation(anyApi.activities.insert, {
+          await ctx.runMutation(internal.activities.insert, {
             brandId,
             accountManagerId,
             type,
@@ -500,7 +501,7 @@ export const runManualAgent = action({
           };
           if (probability != null) dealArgs.probability = probability;
 
-          await ctx.runMutation(anyApi.deals.insert, dealArgs);
+          await ctx.runMutation(internal.deals.insert, dealArgs);
           inserted++;
         }
       }

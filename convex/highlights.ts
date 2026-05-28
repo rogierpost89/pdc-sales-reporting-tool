@@ -7,6 +7,14 @@ export const getByBrand = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const role = (identity as any).publicMetadata?.role;
+    if (role === "brand_partner") {
+      const ownBrandId = (identity as any).publicMetadata?.brandId;
+      if ((args.brandId as string) !== ownBrandId) throw new Error("Access denied");
+    }
+
     const limit = args.limit ?? 12;
     const highlights = await ctx.db
       .query("highlights")
@@ -31,6 +39,11 @@ export const create = mutation({
     uploadedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const role = (identity as any).publicMetadata?.role;
+    if (!["admin", "account_manager"].includes(role)) throw new Error("Insufficient role");
+
     return ctx.db.insert("highlights", {
       brandId: args.brandId,
       fileId: args.storageId,

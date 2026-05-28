@@ -1,9 +1,11 @@
 import {
   actionGeneric as action,
-  mutationGeneric as mutation,
-  queryGeneric as query,
+  internalActionGeneric as internalAction,
+  internalMutationGeneric as internalMutation,
+  internalQueryGeneric as internalQuery,
   anyApi,
 } from "convex/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Resend } from "resend";
 import { renderMonthlyEmail, renderQuarterlyEmail } from "./email/renderEmail";
@@ -38,7 +40,7 @@ function formatQuarterLabel(ts: number): string {
 
 // ─── Internal mutation: insert a notifications record ────────────────────────
 
-export const insertNotification = mutation({
+export const insertNotification = internalMutation({
   args: {
     brandId: v.string(),
     type: v.string(),
@@ -70,9 +72,9 @@ export const insertNotification = mutation({
   },
 });
 
-// ─── Action: send monthly notification email ─────────────────────────────────
+// ─── Internal action: send monthly notification email ────────────────────────
 
-export const sendMonthlyEmail = action({
+export const sendMonthlyEmail = internalAction({
   args: {
     brandId: v.string(),
     reportId: v.string(),
@@ -80,7 +82,7 @@ export const sendMonthlyEmail = action({
   },
   handler: async (ctx, args) => {
     // 1. Fetch brand
-    const brands = await ctx.runQuery(anyApi.brands.list, {});
+    const brands = await ctx.runQuery(internal.brands.listInternal, {});
     const brand = brands.find(
       (b: { _id: string }) => b._id === args.brandId
     ) as
@@ -108,7 +110,6 @@ export const sendMonthlyEmail = action({
     };
 
     // 3. Render email HTML
-    const baseUrl = process.env.APP_BASE_URL ?? "https://yourapp.vercel.app";
     const html = await renderMonthlyEmail({
       brandName: brand.name,
       brandLogoUrl: brand.logoUrl ?? null,
@@ -116,12 +117,12 @@ export const sendMonthlyEmail = action({
       totalRevenueCents: snapshot.totalRevenueCents,
       totalVolume: snapshot.totalVolume,
       highlights: snapshot.highlights ?? [],
-      reportUrl: `${baseUrl}/partner/reports/${args.reportId}`,
-      unsubscribeUrl: `${baseUrl}/unsubscribe`,
+      reportUrl: `https://yourapp.vercel.app/partner/reports/${args.reportId}`,
+      unsubscribeUrl: "https://yourapp.vercel.app/unsubscribe",
     });
 
     // 4. Claim notification slot atomically BEFORE sending (prevents duplicate emails)
-    const claimed = await ctx.runMutation(anyApi.notifications.insertNotification, {
+    const claimed = await ctx.runMutation(internal.notifications.insertNotification, {
       brandId: args.brandId,
       type: "monthly",
       reportId: args.reportId,
@@ -141,9 +142,9 @@ export const sendMonthlyEmail = action({
   },
 });
 
-// ─── Action: send quarterly notification email ────────────────────────────────
+// ─── Internal action: send quarterly notification email ──────────────────────
 
-export const sendQuarterlyEmail = action({
+export const sendQuarterlyEmail = internalAction({
   args: {
     brandId: v.string(),
     reportId: v.string(),
@@ -151,7 +152,7 @@ export const sendQuarterlyEmail = action({
   },
   handler: async (ctx, args) => {
     // 1. Fetch brand
-    const brands = await ctx.runQuery(anyApi.brands.list, {});
+    const brands = await ctx.runQuery(internal.brands.listInternal, {});
     const brand = brands.find(
       (b: { _id: string }) => b._id === args.brandId
     ) as
@@ -179,7 +180,6 @@ export const sendQuarterlyEmail = action({
     };
 
     // 3. Render email HTML
-    const baseUrl = process.env.APP_BASE_URL ?? "https://yourapp.vercel.app";
     const html = await renderQuarterlyEmail({
       brandName: brand.name,
       brandLogoUrl: brand.logoUrl ?? null,
@@ -187,12 +187,12 @@ export const sendQuarterlyEmail = action({
       totalRevenueCents: snapshot.totalRevenueCents,
       totalVolume: snapshot.totalVolume,
       highlights: snapshot.highlights ?? [],
-      reportUrl: `${baseUrl}/partner/reports/${args.reportId}`,
-      unsubscribeUrl: `${baseUrl}/unsubscribe`,
+      reportUrl: `https://yourapp.vercel.app/partner/reports/${args.reportId}`,
+      unsubscribeUrl: "https://yourapp.vercel.app/unsubscribe",
     });
 
     // 4. Claim notification slot atomically BEFORE sending (prevents duplicate emails)
-    const claimed = await ctx.runMutation(anyApi.notifications.insertNotification, {
+    const claimed = await ctx.runMutation(internal.notifications.insertNotification, {
       brandId: args.brandId,
       type: "quarterly",
       reportId: args.reportId,
@@ -212,9 +212,9 @@ export const sendQuarterlyEmail = action({
   },
 });
 
-// ─── Query: deduplication check ─────────────────────────────────────────────
+// ─── Internal query: deduplication check ─────────────────────────────────────
 
-export const getExistingNotification = query({
+export const getExistingNotification = internalQuery({
   args: {
     brandId: v.string(),
     type: v.string(),
@@ -261,7 +261,7 @@ export const triggerMonthly = action({
 
     const periodStart = getMonthStart(Date.now());
 
-    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+    const brands = (await ctx.runQuery(internal.brands.listInternal, {})) as Array<{
       _id: string;
       name: string;
       logoUrl?: string;
@@ -272,7 +272,7 @@ export const triggerMonthly = action({
       try {
         // Deduplication: skip if already notified this period
         const existing = await ctx.runQuery(
-          anyApi.notifications.getExistingNotification,
+          internal.notifications.getExistingNotification,
           { brandId: brand._id, type: "monthly", periodStart }
         );
         if (existing) continue;
@@ -285,7 +285,7 @@ export const triggerMonthly = action({
 
         // Send email — errors here do not affect other brands
         try {
-          await ctx.runAction(anyApi.notifications.sendMonthlyEmail, {
+          await ctx.runAction(internal.notifications.sendMonthlyEmail, {
             brandId: brand._id,
             reportId,
             periodStart,
@@ -318,7 +318,7 @@ export const triggerQuarterly = action({
 
     const periodStart = getQuarterStart(Date.now());
 
-    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+    const brands = (await ctx.runQuery(internal.brands.listInternal, {})) as Array<{
       _id: string;
       name: string;
       logoUrl?: string;
@@ -329,7 +329,7 @@ export const triggerQuarterly = action({
       try {
         // Deduplication: skip if already notified this period
         const existing = await ctx.runQuery(
-          anyApi.notifications.getExistingNotification,
+          internal.notifications.getExistingNotification,
           { brandId: brand._id, type: "quarterly", periodStart }
         );
         if (existing) continue;
@@ -342,7 +342,7 @@ export const triggerQuarterly = action({
 
         // Send email — errors here do not affect other brands
         try {
-          await ctx.runAction(anyApi.notifications.sendQuarterlyEmail, {
+          await ctx.runAction(internal.notifications.sendQuarterlyEmail, {
             brandId: brand._id,
             reportId,
             periodStart,

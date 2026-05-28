@@ -1,10 +1,13 @@
 import {
   actionGeneric as action,
-  mutationGeneric as mutation,
+  internalMutationGeneric as internalMutation,
+  internalQueryGeneric as internalQuery,
   queryGeneric as query,
   anyApi,
 } from "convex/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import type { GenericId } from "convex/values";
 
 // Lightweight stand-in for the generated Id type (avoids depending on _generated/).
 type BrandId = string & { __tableName: "brands" };
@@ -21,18 +24,27 @@ function periodEndFor(period: string, start: number): number {
   return start + 7 * 24 * 60 * 60 * 1000;
 }
 
-// Query: fetch a single report by its ID
+// Query: fetch a single report by its ID — gated on auth; brand_partner scoped to their own brand
 export const getReportById = query({
   args: {
     reportId: v.string(),
   },
   handler: async (ctx, args) => {
-    return ctx.db.get(args.reportId as unknown as import("convex/values").GenericId<"reports">);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const report = await ctx.db.get(args.reportId as unknown as GenericId<"reports">);
+    if (!report) return null;
+    const role = (identity as any).publicMetadata?.role;
+    if (role === "brand_partner") {
+      const brandId = (identity as any).publicMetadata?.brandId;
+      if ((report.brandId as string) !== brandId) throw new Error("Access denied");
+    }
+    return report;
   },
 });
 
 // Internal query: idempotency check — look for existing report with same brandId+period+periodStart
-export const getExistingReport = query({
+export const getExistingReport = internalQuery({
   args: {
     brandId: v.string(),
     period: v.string(),
@@ -55,7 +67,7 @@ export const getExistingReport = query({
 });
 
 // Internal query: fetch sales records for a brand within a time window
-export const getSalesForPeriod = query({
+export const getSalesForPeriod = internalQuery({
   args: {
     brandId: v.string(),
     from: v.number(),
@@ -78,7 +90,7 @@ export const getSalesForPeriod = query({
 });
 
 // Internal query: fetch activity records for a brand within a time window
-export const getActivitiesForPeriod = query({
+export const getActivitiesForPeriod = internalQuery({
   args: {
     brandId: v.string(),
     from: v.number(),
@@ -101,7 +113,7 @@ export const getActivitiesForPeriod = query({
 });
 
 // Internal mutation: insert a new report record (atomically idempotent)
-export const insertReport = mutation({
+export const insertReport = internalMutation({
   args: {
     brandId: v.string(),
     period: v.union(
@@ -153,7 +165,7 @@ export const generateSnapshot = action({
   },
   handler: async (ctx, args) => {
     // 1. Idempotency check
-    const existing = await ctx.runQuery(anyApi.reports.getExistingReport, {
+    const existing = await ctx.runQuery(internal.reports.getExistingReport, {
       brandId: args.brandId,
       period: args.period,
       periodStart: args.periodStart,
@@ -165,12 +177,12 @@ export const generateSnapshot = action({
 
     // 3. Fetch data in parallel
     const [salesRecords, activityRecords, highlights] = await Promise.all([
-      ctx.runQuery(anyApi.reports.getSalesForPeriod, {
+      ctx.runQuery(internal.reports.getSalesForPeriod, {
         brandId: args.brandId,
         from: args.periodStart,
         to: periodEnd,
       }),
-      ctx.runQuery(anyApi.reports.getActivitiesForPeriod, {
+      ctx.runQuery(internal.reports.getActivitiesForPeriod, {
         brandId: args.brandId,
         from: args.periodStart,
         to: periodEnd,
@@ -227,7 +239,7 @@ export const generateSnapshot = action({
     };
 
     // 7. Write and return the new report id
-    const id = await ctx.runMutation(anyApi.reports.insertReport, {
+    const id = await ctx.runMutation(internal.reports.insertReport, {
       brandId: args.brandId,
       period: args.period,
       periodStart: args.periodStart,
@@ -257,7 +269,7 @@ export const generateWeeklySnapshots = action({
     // Snapshot the just-completed week (Mon–Sun), not the current week.
     const periodStart = getWeekStart(Date.now()) - 7 * 24 * 60 * 60 * 1000;
 
-    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+    const brands = (await ctx.runQuery(internal.brands.listInternal, {})) as Array<{
       _id: string;
     }>;
 
@@ -286,7 +298,7 @@ export const generateAnnualSnapshots = action({
     const now = new Date(Date.now());
     const periodStart = Date.UTC(now.getUTCFullYear() - 1, 0, 1); // Jan 1 of prior year
 
-    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+    const brands = (await ctx.runQuery(internal.brands.listInternal, {})) as Array<{
       _id: string;
     }>;
 
