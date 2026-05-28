@@ -108,6 +108,7 @@ export const sendMonthlyEmail = action({
     };
 
     // 3. Render email HTML
+    const baseUrl = process.env.APP_BASE_URL ?? "https://yourapp.vercel.app";
     const html = await renderMonthlyEmail({
       brandName: brand.name,
       brandLogoUrl: brand.logoUrl ?? null,
@@ -115,8 +116,8 @@ export const sendMonthlyEmail = action({
       totalRevenueCents: snapshot.totalRevenueCents,
       totalVolume: snapshot.totalVolume,
       highlights: snapshot.highlights ?? [],
-      reportUrl: `https://yourapp.vercel.app/partner/reports/${args.reportId}`,
-      unsubscribeUrl: "https://yourapp.vercel.app/unsubscribe",
+      reportUrl: `${baseUrl}/partner/reports/${args.reportId}`,
+      unsubscribeUrl: `${baseUrl}/unsubscribe`,
     });
 
     // 4. Claim notification slot atomically BEFORE sending (prevents duplicate emails)
@@ -178,6 +179,7 @@ export const sendQuarterlyEmail = action({
     };
 
     // 3. Render email HTML
+    const baseUrl = process.env.APP_BASE_URL ?? "https://yourapp.vercel.app";
     const html = await renderQuarterlyEmail({
       brandName: brand.name,
       brandLogoUrl: brand.logoUrl ?? null,
@@ -185,8 +187,8 @@ export const sendQuarterlyEmail = action({
       totalRevenueCents: snapshot.totalRevenueCents,
       totalVolume: snapshot.totalVolume,
       highlights: snapshot.highlights ?? [],
-      reportUrl: `https://yourapp.vercel.app/partner/reports/${args.reportId}`,
-      unsubscribeUrl: "https://yourapp.vercel.app/unsubscribe",
+      reportUrl: `${baseUrl}/partner/reports/${args.reportId}`,
+      unsubscribeUrl: `${baseUrl}/unsubscribe`,
     });
 
     // 4. Claim notification slot atomically BEFORE sending (prevents duplicate emails)
