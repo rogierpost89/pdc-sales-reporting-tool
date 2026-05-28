@@ -145,9 +145,16 @@ export const runIngestionAgent = action({
       );
       return summary;
     } catch (error) {
+      const agentUsed = {
+        exact: "exactAgent",
+        woocommerce: "woocommerceAgent",
+        pipedrive: "pipedriveAgent",
+        manual: "manualAgent",
+      }[args.source];
       await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
         uploadId: args.uploadId,
         status: "failed",
+        agentUsed,
       });
       throw error;
     }
