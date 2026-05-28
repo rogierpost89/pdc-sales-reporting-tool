@@ -30,7 +30,7 @@ export default defineSchema({
 
   activities: defineTable({
     brandId: v.id("brands"),
-    accountManagerId: v.id("users"),
+    accountManagerId: v.string(),
     type: v.union(
       v.literal("call"),
       v.literal("tasting"),
@@ -78,7 +78,7 @@ export default defineSchema({
     brandId: v.id("brands"),
     fileId: v.id("_storage"),
     caption: v.string(),
-    uploadedBy: v.id("users"),
+    uploadedBy: v.string(),
     date: v.number(),
   }).index("by_brandId", ["brandId"]),
 
