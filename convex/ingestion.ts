@@ -94,7 +94,23 @@ export const runIngestionAgent = action({
         return summary;
       }
 
-      // TODO: Route to the correct agent based on source (#16, #17, #18)
+      if (args.source === "woocommerce") {
+        const summary = await ctx.runAction(
+          anyApi.agents.woocommerceAgent.runWoocommerceAgent,
+          {
+            uploadId: args.uploadId,
+            storageId: args.storageId,
+          }
+        );
+        await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
+          uploadId: args.uploadId,
+          status: "done",
+          agentUsed: "woocommerceAgent",
+        });
+        return summary;
+      }
+
+      // TODO: Route to the correct agent based on source (#17, #18)
       // Stub for other sources: mark as done immediately
       await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
         uploadId: args.uploadId,
