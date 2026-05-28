@@ -155,6 +155,13 @@ export const getActivities = query({
   },
 });
 
+export const getUploads = query({
+  args: {},
+  handler: async (ctx) => {
+    return ctx.db.query("uploads").order("desc").take(50);
+  },
+});
+
 export const getDeals = query({
   args: {
     brandId: v.optional(v.id("brands")),

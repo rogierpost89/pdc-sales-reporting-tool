@@ -17,6 +17,7 @@ import { MetricCards } from "@/components/dashboard/MetricCards";
 import { SalesTable } from "@/components/dashboard/SalesTable";
 import { ActivityPanel } from "@/components/dashboard/ActivityPanel";
 import { DealsPanel } from "@/components/dashboard/DealsPanel";
+import { UploadHistory } from "@/components/dashboard/UploadHistory";
 
 const PERIODS = [
   { label: "Last 7 days", value: "7d" },
@@ -152,6 +153,9 @@ function DashboardContent() {
 
       {/* Deals panel */}
       <DealsPanel brandId={brandIdParam ?? undefined} />
+
+      {/* Upload history */}
+      <UploadHistory />
     </main>
   );
 }
