@@ -1,5 +1,27 @@
-import { mutationGeneric as mutation } from "convex/server";
+import { mutationGeneric as mutation, queryGeneric as query } from "convex/server";
 import { v } from "convex/values";
+
+export const getByBrand = query({
+  args: {
+    brandId: v.id("brands"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 12;
+    const highlights = await ctx.db
+      .query("highlights")
+      .withIndex("by_brandId", (q) => q.eq("brandId", args.brandId))
+      .order("desc")
+      .take(limit);
+
+    return Promise.all(
+      highlights.map(async (h) => ({
+        ...h,
+        url: await ctx.storage.getUrl(h.fileId),
+      }))
+    );
+  },
+});
 
 export const create = mutation({
   args: {
