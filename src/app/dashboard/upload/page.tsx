@@ -8,6 +8,7 @@ import { UploadZone } from "@/components/ingestion/UploadZone";
 
 export default function UploadPage() {
   const [selectedSource, setSelectedSource] = useState<DataSource | null>(null);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -19,7 +20,7 @@ export default function UploadPage() {
 
   const handleFileSelected = useCallback(
     async (file: File) => {
-      if (!selectedSource) return;
+      if (!selectedSource || !selectedBrandId) return;
 
       setIsUploading(true);
       setUploadProgress(0);
@@ -50,6 +51,7 @@ export default function UploadPage() {
         const uploadId = await createUpload({
           storageId: storageId as Parameters<typeof createUpload>[0]["storageId"],
           source: selectedSource,
+          brandId: selectedBrandId,
         });
         setUploadProgress(75);
 
@@ -58,6 +60,7 @@ export default function UploadPage() {
           uploadId,
           storageId: storageId as Parameters<typeof runIngestionAgent>[0]["storageId"],
           source: selectedSource,
+          brandId: selectedBrandId,
         });
 
         setUploadProgress(100);
@@ -70,7 +73,7 @@ export default function UploadPage() {
         setIsUploading(false);
       }
     },
-    [selectedSource, generateUploadUrl, createUpload, runIngestionAgent]
+    [selectedSource, selectedBrandId, generateUploadUrl, createUpload, runIngestionAgent]
   );
 
   return (
@@ -79,24 +82,27 @@ export default function UploadPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Upload data</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Select a data source and upload a CSV or Excel file for ingestion.
+            Select a data source and brand, then upload a CSV or Excel file for ingestion.
           </p>
         </div>
 
-        {/* Step 1 — source selector */}
+        {/* Step 1 — source and brand selectors */}
         <SourceSelector
           value={selectedSource}
           onChange={(v) => {
             setSelectedSource(v);
             // Reset state when source changes
+            setSelectedBrandId(null);
             setUploadedFileName(null);
             setUploadError(null);
             setUploadProgress(0);
           }}
+          brandId={selectedBrandId}
+          onBrandChange={setSelectedBrandId}
         />
 
-        {/* Step 2 — upload zone, shown only when a source is selected */}
-        {selectedSource && (
+        {/* Step 2 — upload zone, shown only when both source and brand are selected */}
+        {selectedSource && selectedBrandId && (
           <UploadZone
             source={selectedSource}
             onFileSelected={handleFileSelected}

@@ -170,6 +170,7 @@ export const runManualAgent = action({
   args: {
     uploadId: v.id("uploads"),
     storageId: v.id("_storage"),
+    brandId: v.string(),
   },
   handler: async (ctx, args) => {
     // 1. Read file from Convex storage.
@@ -262,7 +263,7 @@ export const runManualAgent = action({
       };
     }
 
-    // 4. Load brands and users — needed for resolution and brand-fallback.
+    // 4. Load brands and users — needed for resolution.
     const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
       _id: string;
       name: string;
@@ -271,7 +272,6 @@ export const runManualAgent = action({
       _id: string;
       name?: string;
     }>;
-    const fallbackBrandId = brands[0]?._id;
 
     const tablesWritten: string[] = [];
     const rowsInsertedPerTable: Record<string, number> = {};
@@ -361,12 +361,11 @@ export const runManualAgent = action({
           )
             channel = "b2b_wholesale";
 
-          let brandId = findBrandId(brands, brandName);
-          if (!brandId) brandId = fallbackBrandId ?? null;
+          const brandId = findBrandId(brands, brandName);
           if (!brandId) {
             skippedRows.push({
               rowIndex: i,
-              reason: "sales_data: no brand resolved and no fallback brand exists",
+              reason: `brand not found: ${brandName ?? "(none)"}`,
             });
             continue;
           }

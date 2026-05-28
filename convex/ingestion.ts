@@ -32,11 +32,13 @@ export const createUpload = mutation({
   args: {
     storageId: v.id("_storage"),
     source: sourceValidator,
+    brandId: v.string(),
   },
   handler: async (ctx, args) => {
     const uploadId = await ctx.db.insert("uploads", {
       fileId: args.storageId,
       source: args.source,
+      brandId: args.brandId,
       status: "pending",
       parsedAt: undefined,
       agentUsed: undefined,
@@ -69,6 +71,7 @@ export const runIngestionAgent = action({
     uploadId: v.id("uploads"),
     storageId: v.id("_storage"),
     source: sourceValidator,
+    brandId: v.string(),
   },
   handler: async (ctx, args) => {
     // Mark as processing
@@ -84,6 +87,7 @@ export const runIngestionAgent = action({
           {
             uploadId: args.uploadId,
             storageId: args.storageId,
+            brandId: args.brandId,
           }
         );
         await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
@@ -100,6 +104,7 @@ export const runIngestionAgent = action({
           {
             uploadId: args.uploadId,
             storageId: args.storageId,
+            brandId: args.brandId,
           }
         );
         await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
@@ -116,6 +121,7 @@ export const runIngestionAgent = action({
           {
             uploadId: args.uploadId,
             storageId: args.storageId,
+            brandId: args.brandId,
           }
         );
         await ctx.runMutation(anyApi.ingestion.updateUploadStatus, {
@@ -134,6 +140,7 @@ export const runIngestionAgent = action({
         {
           uploadId: args.uploadId,
           storageId: args.storageId,
+          brandId: args.brandId,
         }
       );
       return summary;

@@ -52,6 +52,7 @@ export default defineSchema({
   uploads: defineTable({
     source: v.string(),
     fileId: v.id("_storage"),
+    brandId: v.string(),
     status: v.union(
       v.literal("pending"),
       v.literal("processing"),

@@ -139,6 +139,7 @@ export const runPipedriveAgent = action({
   args: {
     uploadId: v.id("uploads"),
     storageId: v.id("_storage"),
+    brandId: v.string(),
   },
   handler: async (ctx, args) => {
     // 1. Read file from Convex storage

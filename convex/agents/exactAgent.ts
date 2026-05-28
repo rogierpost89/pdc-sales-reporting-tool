@@ -46,6 +46,7 @@ export const runExactAgent = action({
   args: {
     uploadId: v.id("uploads"),
     storageId: v.id("_storage"),
+    brandId: v.string(),
   },
   handler: async (ctx, args) => {
     // 1. Read file from Convex storage
@@ -90,16 +91,8 @@ export const runExactAgent = action({
       );
     }
 
-    // 4. Resolve a brandId. Exact Online exports don't carry brand context; the
-    //    admin selects the brand when uploading. For now we attach to the first
-    //    brand as a placeholder — a future ticket will pass brandId via args.
-    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
-      _id: string;
-    }>;
-    const brandId = brands[0]?._id;
-    if (!brandId) {
-      throw new Error("No brands found — create a brand first");
-    }
+    // 4. Use the brandId passed in from the upload UI.
+    const brandId = args.brandId;
 
     // 5. Write records
     let rowsProcessed = 0;
