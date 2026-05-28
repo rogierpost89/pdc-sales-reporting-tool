@@ -70,6 +70,7 @@ export default defineSchema({
       v.literal("quarterly"),
       v.literal("annual")
     ),
+    periodStart: v.number(),
     snapshotData: v.any(),
     createdAt: v.number(),
   }).index("by_brandId", ["brandId"]),
