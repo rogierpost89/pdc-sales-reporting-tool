@@ -88,5 +88,6 @@ export default defineSchema({
     type: v.string(),
     sentAt: v.number(),
     reportId: v.id("reports"),
+    periodStart: v.number(),
   }).index("by_brandId", ["brandId"]),
 });

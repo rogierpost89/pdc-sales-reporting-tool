@@ -12,6 +12,14 @@ import { renderMonthlyEmail, renderQuarterlyEmail } from "./email/renderEmail";
 type BrandId = string & { __tableName: "brands" };
 type ReportId = string & { __tableName: "reports" };
 
+/** Returns true only when `ts` falls on the last day of its UTC month. */
+function isLastDayOfMonth(ts: number): boolean {
+  const d = new Date(ts);
+  const tomorrow = new Date(ts);
+  tomorrow.setUTCDate(d.getUTCDate() + 1);
+  return tomorrow.getUTCMonth() !== d.getUTCMonth();
+}
+
 /** Format a Unix timestamp (ms) into "Month YYYY", e.g. "May 2026" */
 function formatMonthLabel(ts: number): string {
   return new Date(ts).toLocaleString("en-US", {
@@ -34,6 +42,7 @@ export const insertNotification = mutation({
     brandId: v.string(),
     type: v.string(),
     reportId: v.string(),
+    periodStart: v.number(),
   },
   handler: async (ctx, args) => {
     return ctx.db.insert("notifications", {
@@ -41,6 +50,7 @@ export const insertNotification = mutation({
       type: args.type,
       sentAt: Date.now(),
       reportId: args.reportId as unknown as ReportId,
+      periodStart: args.periodStart,
     });
   },
 });
@@ -51,6 +61,7 @@ export const sendMonthlyEmail = action({
   args: {
     brandId: v.string(),
     reportId: v.string(),
+    periodStart: v.number(),
   },
   handler: async (ctx, args) => {
     // 1. Fetch brand
@@ -108,6 +119,7 @@ export const sendMonthlyEmail = action({
       brandId: args.brandId,
       type: "monthly",
       reportId: args.reportId,
+      periodStart: args.periodStart,
     });
   },
 });
@@ -118,6 +130,7 @@ export const sendQuarterlyEmail = action({
   args: {
     brandId: v.string(),
     reportId: v.string(),
+    periodStart: v.number(),
   },
   handler: async (ctx, args) => {
     // 1. Fetch brand
@@ -175,6 +188,7 @@ export const sendQuarterlyEmail = action({
       brandId: args.brandId,
       type: "quarterly",
       reportId: args.reportId,
+      periodStart: args.periodStart,
     });
   },
 });
@@ -188,8 +202,6 @@ export const getExistingNotification = query({
     periodStart: v.number(),
   },
   handler: async (ctx, args) => {
-    // periodEnd is defined as periodStart + the period's duration (31 days covers any month)
-    const periodEnd = args.periodStart + 31 * 24 * 60 * 60 * 1000;
     return ctx.db
       .query("notifications")
       .withIndex("by_brandId", (q) =>
@@ -198,8 +210,7 @@ export const getExistingNotification = query({
       .filter((q) =>
         q.and(
           q.eq(q.field("type"), args.type),
-          q.gte(q.field("sentAt"), args.periodStart),
-          q.lt(q.field("sentAt"), periodEnd)
+          q.eq(q.field("periodStart"), args.periodStart)
         )
       )
       .first();
@@ -224,6 +235,11 @@ function getQuarterStart(ts: number): number {
 export const triggerMonthly = action({
   args: {},
   handler: async (ctx, _args) => {
+    // Guard: the cron fires on day 28 (safe across all months), but we only
+    // proceed on the true last day of the month so February and shorter months
+    // are handled correctly.
+    if (!isLastDayOfMonth(Date.now())) return;
+
     const periodStart = getMonthStart(Date.now());
 
     const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
@@ -253,6 +269,7 @@ export const triggerMonthly = action({
           await ctx.runAction(anyApi.notifications.sendMonthlyEmail, {
             brandId: brand._id,
             reportId,
+            periodStart,
           });
         } catch (emailErr) {
           console.error(
@@ -275,6 +292,11 @@ export const triggerMonthly = action({
 export const triggerQuarterly = action({
   args: {},
   handler: async (ctx, _args) => {
+    // Guard: the cron fires on day 28 (safe across all months), but we only
+    // proceed on the true last day of the month so shorter quarter-end months
+    // are handled correctly.
+    if (!isLastDayOfMonth(Date.now())) return;
+
     const periodStart = getQuarterStart(Date.now());
 
     const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
@@ -304,6 +326,7 @@ export const triggerQuarterly = action({
           await ctx.runAction(anyApi.notifications.sendQuarterlyEmail, {
             brandId: brand._id,
             reportId,
+            periodStart,
           });
         } catch (emailErr) {
           console.error(

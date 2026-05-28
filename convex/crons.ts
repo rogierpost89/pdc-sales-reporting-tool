@@ -14,7 +14,8 @@ crons.weekly(
 // ─── Monthly: last day of each month — send monthly notification emails ──────
 // Convex's .monthly() fires on the given day-of-month.
 // Day 28 is the latest day guaranteed to exist in every month (February edge case).
-// triggerMonthly computes the true periodStart (first of current month) internally.
+// triggerMonthly checks isLastDayOfMonth() at runtime and returns early if today
+// is not the true last day, so emails only fire on the actual last day of each month.
 crons.monthly(
   "monthly notification",
   { day: 28, hourUTC: 9, minuteUTC: 0 },
@@ -25,6 +26,8 @@ crons.monthly(
 // ─── Quarterly: last month of each quarter (Mar/Jun/Sep/Dec), day 28 ─────────
 // Registered as four separate monthly crons restricted to months 3, 6, 9, 12
 // using crontab syntax: minute hour day-of-month month day-of-week
+// triggerQuarterly checks isLastDayOfMonth() at runtime and returns early if today
+// is not the true last day, ensuring emails fire only on the actual quarter-end day.
 crons.cron(
   "quarterly notification Q1",
   "0 9 28 3 *",
