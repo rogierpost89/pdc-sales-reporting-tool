@@ -1,19 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useMutation, useAction } from "convex/react";
+import { anyApi } from "convex/server";
 import { SourceSelector, type DataSource } from "@/components/ingestion/SourceSelector";
 import { UploadZone } from "@/components/ingestion/UploadZone";
 
 export default function UploadPage() {
   const [selectedSource, setSelectedSource] = useState<DataSource | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  function handleFileSelected(file: File) {
-    // Real upload to Convex storage is handled in ticket #14.
-    // For now, log the file and record the filename for success display.
-    console.log("[UploadPage] file selected:", file.name, file.size, "bytes", "source:", selectedSource);
-    setUploadedFileName(file.name);
-  }
+  const generateUploadUrl = useMutation(anyApi.ingestion.generateUploadUrl);
+  const createUpload = useMutation(anyApi.ingestion.createUpload);
+  const runIngestionAgent = useAction(anyApi.ingestion.runIngestionAgent);
+
+  const handleFileSelected = useCallback(
+    async (file: File) => {
+      if (!selectedSource) return;
+
+      setIsUploading(true);
+      setUploadProgress(0);
+      setUploadError(null);
+      setUploadedFileName(null);
+
+      try {
+        // Step 1: Get a pre-signed upload URL from Convex
+        setUploadProgress(10);
+        const uploadUrl = await generateUploadUrl();
+
+        // Step 2: Upload the file directly to Convex storage
+        setUploadProgress(30);
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+          body: file,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Storage upload failed: ${uploadResponse.statusText}`);
+        }
+
+        const { storageId } = await uploadResponse.json() as { storageId: string };
+        setUploadProgress(60);
+
+        // Step 3: Create the uploads record in Convex DB
+        const uploadId = await createUpload({
+          storageId: storageId as Parameters<typeof createUpload>[0]["storageId"],
+          source: selectedSource,
+        });
+        setUploadProgress(75);
+
+        // Step 4: Dispatch the ingestion agent
+        await runIngestionAgent({
+          uploadId,
+          storageId: storageId as Parameters<typeof runIngestionAgent>[0]["storageId"],
+          source: selectedSource,
+        });
+
+        setUploadProgress(100);
+        setUploadedFileName(file.name);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Upload failed — please try again.";
+        setUploadError(message);
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [selectedSource, generateUploadUrl, createUpload, runIngestionAgent]
+  );
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-start gap-8 px-4 py-12 md:py-20">
@@ -26,18 +84,26 @@ export default function UploadPage() {
         </div>
 
         {/* Step 1 — source selector */}
-        <SourceSelector value={selectedSource} onChange={(v) => {
-          setSelectedSource(v);
-          // Reset success state when source changes
-          setUploadedFileName(null);
-        }} />
+        <SourceSelector
+          value={selectedSource}
+          onChange={(v) => {
+            setSelectedSource(v);
+            // Reset state when source changes
+            setUploadedFileName(null);
+            setUploadError(null);
+            setUploadProgress(0);
+          }}
+        />
 
         {/* Step 2 — upload zone, shown only when a source is selected */}
         {selectedSource && (
           <UploadZone
             source={selectedSource}
             onFileSelected={handleFileSelected}
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
             uploadedFileName={uploadedFileName}
+            error={uploadError}
           />
         )}
       </div>
