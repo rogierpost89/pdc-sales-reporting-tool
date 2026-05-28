@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { MetricCards } from "@/components/dashboard/MetricCards";
 import { SalesTable } from "@/components/dashboard/SalesTable";
+import { ActivityPanel } from "@/components/dashboard/ActivityPanel";
+import { DealsPanel } from "@/components/dashboard/DealsPanel";
 
 const PERIODS = [
   { label: "Last 7 days", value: "7d" },
@@ -144,6 +146,12 @@ function DashboardContent() {
           <div className="h-48 rounded-xl bg-muted/40 animate-pulse ring-1 ring-foreground/10" />
         )}
       </div>
+
+      {/* Activity panel */}
+      <ActivityPanel brandId={brandIdParam ?? undefined} />
+
+      {/* Deals panel */}
+      <DealsPanel brandId={brandIdParam ?? undefined} />
     </main>
   );
 }
