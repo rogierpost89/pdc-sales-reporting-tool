@@ -33,7 +33,7 @@ function formatWeekLabel(weekStart: number): string {
 }
 
 export default function AccountPage() {
-  const { user, isLoaded } = useUser();
+  const { isLoaded } = useUser();
   const [weekOffset, setWeekOffset] = useState(0);
 
   const weekStart = getWeekStart(weekOffset);
@@ -41,9 +41,7 @@ export default function AccountPage() {
 
   const activities = useQuery(
     anyApi.account.getMyActivities,
-    isLoaded && user?.id
-      ? { userId: user.id, weekStart }
-      : "skip"
+    isLoaded ? { weekStart } : "skip"
   ) as BrandActivity[] | undefined;
 
   // Summary totals
