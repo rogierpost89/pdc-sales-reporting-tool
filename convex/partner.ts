@@ -1,6 +1,9 @@
 import { queryGeneric as query } from "convex/server";
 import { v } from "convex/values";
 
+// Lightweight stand-in for the generated Id type (avoids depending on _generated/).
+type BrandId = string & { __tableName: "brands" };
+
 const PERIOD_MS: Record<string, number> = {
   "30d": 30 * 24 * 60 * 60 * 1000,
   "90d": 90 * 24 * 60 * 60 * 1000,
@@ -87,5 +90,42 @@ export const getBrandMetrics = query({
       channelBreakdownMap: channelMap,
       activitySummary,
     };
+  },
+});
+
+export const getMyReports = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    const brandId = (
+      identity as { publicMetadata?: { brandId?: string } }
+    ).publicMetadata?.brandId;
+    if (!brandId) return [];
+
+    const reports = await ctx.db
+      .query("reports")
+      .withIndex("by_brandId", (q) =>
+        q.eq("brandId", brandId as unknown as BrandId)
+      )
+      .order("desc")
+      .collect();
+
+    // Also fetch brand info for the report viewer
+    const brand = await ctx.db
+      .query("brands")
+      .filter((q) => q.eq(q.field("_id"), brandId as unknown as BrandId))
+      .first();
+
+    return reports.map((r) => ({
+      _id: r._id as string,
+      period: r.period,
+      periodStart: r.periodStart,
+      createdAt: r.createdAt,
+      snapshotData: r.snapshotData,
+      brandName: brand?.name ?? "Unknown",
+      brandLogoUrl: brand?.logoUrl ?? null,
+    }));
   },
 });
