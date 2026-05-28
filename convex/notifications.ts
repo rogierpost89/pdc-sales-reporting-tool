@@ -46,6 +46,20 @@ export const insertNotification = mutation({
     periodStart: v.number(),
   },
   handler: async (ctx, args) => {
+    // Atomic claim: check+insert in one serialized mutation prevents duplicate emails
+    const existing = await ctx.db
+      .query("notifications")
+      .withIndex("by_brandId", (q) =>
+        q.eq("brandId", args.brandId as unknown as BrandId)
+      )
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("type"), args.type),
+          q.eq(q.field("periodStart"), args.periodStart)
+        )
+      )
+      .first();
+    if (existing) return null; // already claimed — caller should skip send
     return ctx.db.insert("notifications", {
       brandId: args.brandId as unknown as BrandId,
       type: args.type,
@@ -105,7 +119,16 @@ export const sendMonthlyEmail = action({
       unsubscribeUrl: "https://yourapp.vercel.app/unsubscribe",
     });
 
-    // 4. Send via Resend — if this throws, the notification record is NOT written
+    // 4. Claim notification slot atomically BEFORE sending (prevents duplicate emails)
+    const claimed = await ctx.runMutation(anyApi.notifications.insertNotification, {
+      brandId: args.brandId,
+      type: "monthly",
+      reportId: args.reportId,
+      periodStart: args.periodStart,
+    });
+    if (!claimed) return; // already notified for this period — skip
+
+    // 5. Send via Resend
     const resend = new Resend(process.env.RESEND_API_KEY);
     const monthLabel = formatMonthLabel(report.periodStart as number);
     await resend.emails.send({
@@ -113,14 +136,6 @@ export const sendMonthlyEmail = action({
       to: brand.partnerEmails,
       subject: `Your ${monthLabel} Report is Ready`,
       html,
-    });
-
-    // 5. Write notifications record
-    await ctx.runMutation(anyApi.notifications.insertNotification, {
-      brandId: args.brandId,
-      type: "monthly",
-      reportId: args.reportId,
-      periodStart: args.periodStart,
     });
   },
 });
@@ -174,7 +189,16 @@ export const sendQuarterlyEmail = action({
       unsubscribeUrl: "https://yourapp.vercel.app/unsubscribe",
     });
 
-    // 4. Send via Resend — if this throws, the notification record is NOT written
+    // 4. Claim notification slot atomically BEFORE sending (prevents duplicate emails)
+    const claimed = await ctx.runMutation(anyApi.notifications.insertNotification, {
+      brandId: args.brandId,
+      type: "quarterly",
+      reportId: args.reportId,
+      periodStart: args.periodStart,
+    });
+    if (!claimed) return; // already notified for this period — skip
+
+    // 5. Send via Resend
     const resend = new Resend(process.env.RESEND_API_KEY);
     const quarterLabel = formatQuarterLabel(report.periodStart as number);
     await resend.emails.send({
@@ -182,14 +206,6 @@ export const sendQuarterlyEmail = action({
       to: brand.partnerEmails,
       subject: `Your ${quarterLabel} Report is Ready`,
       html,
-    });
-
-    // 5. Write notifications record
-    await ctx.runMutation(anyApi.notifications.insertNotification, {
-      brandId: args.brandId,
-      type: "quarterly",
-      reportId: args.reportId,
-      periodStart: args.periodStart,
     });
   },
 });

@@ -100,7 +100,7 @@ export const getActivitiesForPeriod = query({
   },
 });
 
-// Internal mutation: insert a new report record
+// Internal mutation: insert a new report record (atomically idempotent)
 export const insertReport = mutation({
   args: {
     brandId: v.string(),
@@ -114,13 +114,28 @@ export const insertReport = mutation({
     snapshotData: v.any(),
   },
   handler: async (ctx, args) => {
+    // Atomic idempotency: serialized mutation makes this check+insert race-free
+    const existing = await ctx.db
+      .query("reports")
+      .withIndex("by_brandId", (q) =>
+        q.eq("brandId", args.brandId as unknown as BrandId)
+      )
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("period"), args.period),
+          q.eq(q.field("periodStart"), args.periodStart)
+        )
+      )
+      .first();
+    if (existing) return existing._id as string;
+
     return ctx.db.insert("reports", {
       brandId: args.brandId as unknown as BrandId,
       period: args.period,
       periodStart: args.periodStart,
       snapshotData: args.snapshotData,
       createdAt: Date.now(),
-    });
+    }) as unknown as string;
   },
 });
 
