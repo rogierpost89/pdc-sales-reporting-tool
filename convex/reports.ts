@@ -217,3 +217,71 @@ export const generateSnapshot = action({
     return id as string;
   },
 });
+
+// ─── Helper: compute Monday 00:00 UTC for the current week ──────────────────
+function getWeekStart(ts: number): number {
+  const d = new Date(ts);
+  const dayOfWeek = d.getUTCDay(); // 0 = Sunday, 1 = Monday …
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  return Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate() + daysToMonday
+  );
+}
+
+// ─── Orchestrator: generate weekly snapshots for all brands ─────────────────
+export const generateWeeklySnapshots = action({
+  args: {},
+  handler: async (ctx, _args) => {
+    const periodStart = getWeekStart(Date.now());
+
+    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+      _id: string;
+    }>;
+
+    for (const brand of brands) {
+      try {
+        await ctx.runAction(anyApi.reports.generateSnapshot, {
+          brandId: brand._id,
+          period: "weekly",
+          periodStart,
+        });
+      } catch (err) {
+        console.error(
+          `[generateWeeklySnapshots] failed for brand ${brand._id}:`,
+          err
+        );
+      }
+    }
+  },
+});
+
+// ─── Orchestrator: generate annual snapshots for all brands ─────────────────
+export const generateAnnualSnapshots = action({
+  args: {},
+  handler: async (ctx, _args) => {
+    // Annual snapshot covers the previous calendar year
+    const now = new Date(Date.now());
+    const periodStart = Date.UTC(now.getUTCFullYear() - 1, 0, 1); // Jan 1 of prior year
+
+    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+      _id: string;
+    }>;
+
+    for (const brand of brands) {
+      try {
+        await ctx.runAction(anyApi.reports.generateSnapshot, {
+          brandId: brand._id,
+          period: "annual",
+          periodStart,
+        });
+      } catch (err) {
+        console.error(
+          `[generateAnnualSnapshots] failed for brand ${brand._id}:`,
+          err
+        );
+      }
+    }
+  },
+});

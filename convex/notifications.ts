@@ -1,6 +1,7 @@
 import {
   actionGeneric as action,
   mutationGeneric as mutation,
+  queryGeneric as query,
   anyApi,
 } from "convex/server";
 import { v } from "convex/values";
@@ -175,5 +176,147 @@ export const sendQuarterlyEmail = action({
       type: "quarterly",
       reportId: args.reportId,
     });
+  },
+});
+
+// ─── Query: deduplication check ─────────────────────────────────────────────
+
+export const getExistingNotification = query({
+  args: {
+    brandId: v.string(),
+    type: v.string(),
+    periodStart: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // periodEnd is defined as periodStart + the period's duration (31 days covers any month)
+    const periodEnd = args.periodStart + 31 * 24 * 60 * 60 * 1000;
+    return ctx.db
+      .query("notifications")
+      .withIndex("by_brandId", (q) =>
+        q.eq("brandId", args.brandId as unknown as BrandId)
+      )
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("type"), args.type),
+          q.gte(q.field("sentAt"), args.periodStart),
+          q.lt(q.field("sentAt"), periodEnd)
+        )
+      )
+      .first();
+  },
+});
+
+// ─── Helpers: compute period starts from a given timestamp ──────────────────
+
+function getMonthStart(ts: number): number {
+  const d = new Date(ts);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+}
+
+function getQuarterStart(ts: number): number {
+  const d = new Date(ts);
+  const quarterStartMonth = Math.floor(d.getUTCMonth() / 3) * 3;
+  return Date.UTC(d.getUTCFullYear(), quarterStartMonth, 1);
+}
+
+// ─── Action: orchestrate monthly notifications for all brands ─────────────
+
+export const triggerMonthly = action({
+  args: {},
+  handler: async (ctx, _args) => {
+    const periodStart = getMonthStart(Date.now());
+
+    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+      _id: string;
+      name: string;
+      logoUrl?: string;
+      partnerEmails: string[];
+    }>;
+
+    for (const brand of brands) {
+      try {
+        // Deduplication: skip if already notified this period
+        const existing = await ctx.runQuery(
+          anyApi.notifications.getExistingNotification,
+          { brandId: brand._id, type: "monthly", periodStart }
+        );
+        if (existing) continue;
+
+        // Generate (or retrieve existing) snapshot
+        const reportId = (await ctx.runAction(
+          anyApi.reports.generateSnapshot,
+          { brandId: brand._id, period: "monthly", periodStart }
+        )) as string;
+
+        // Send email — errors here do not affect other brands
+        try {
+          await ctx.runAction(anyApi.notifications.sendMonthlyEmail, {
+            brandId: brand._id,
+            reportId,
+          });
+        } catch (emailErr) {
+          console.error(
+            `[triggerMonthly] email failed for brand ${brand._id}:`,
+            emailErr
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[triggerMonthly] snapshot failed for brand ${brand._id}:`,
+          err
+        );
+      }
+    }
+  },
+});
+
+// ─── Action: orchestrate quarterly notifications for all brands ───────────
+
+export const triggerQuarterly = action({
+  args: {},
+  handler: async (ctx, _args) => {
+    const periodStart = getQuarterStart(Date.now());
+
+    const brands = (await ctx.runQuery(anyApi.brands.list, {})) as Array<{
+      _id: string;
+      name: string;
+      logoUrl?: string;
+      partnerEmails: string[];
+    }>;
+
+    for (const brand of brands) {
+      try {
+        // Deduplication: skip if already notified this period
+        const existing = await ctx.runQuery(
+          anyApi.notifications.getExistingNotification,
+          { brandId: brand._id, type: "quarterly", periodStart }
+        );
+        if (existing) continue;
+
+        // Generate (or retrieve existing) snapshot
+        const reportId = (await ctx.runAction(
+          anyApi.reports.generateSnapshot,
+          { brandId: brand._id, period: "quarterly", periodStart }
+        )) as string;
+
+        // Send email — errors here do not affect other brands
+        try {
+          await ctx.runAction(anyApi.notifications.sendQuarterlyEmail, {
+            brandId: brand._id,
+            reportId,
+          });
+        } catch (emailErr) {
+          console.error(
+            `[triggerQuarterly] email failed for brand ${brand._id}:`,
+            emailErr
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[triggerQuarterly] snapshot failed for brand ${brand._id}:`,
+          err
+        );
+      }
+    }
   },
 });
