@@ -6,8 +6,9 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "skipLibCheck": true,
+    "jsx": "react-jsx",
     "paths": {}
   },
-  "include": ["./**/*"],
+  "include": ["./**/*", "../src/components/email/**/*"],
   "exclude": ["../.next/**", "../node_modules/**"]
 }

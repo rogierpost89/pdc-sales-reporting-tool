@@ -16,6 +16,16 @@ const PERIOD_DURATION: Record<string, number> = {
   annual: 365 * 24 * 60 * 60 * 1000,
 };
 
+// Query: fetch a single report by its ID
+export const getReportById = query({
+  args: {
+    reportId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return ctx.db.get(args.reportId as unknown as import("convex/values").GenericId<"reports">);
+  },
+});
+
 // Internal query: idempotency check — look for existing report with same brandId+period+periodStart
 export const getExistingReport = query({
   args: {
