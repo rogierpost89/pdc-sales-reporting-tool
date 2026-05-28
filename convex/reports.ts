@@ -9,12 +9,17 @@ import { v } from "convex/values";
 // Lightweight stand-in for the generated Id type (avoids depending on _generated/).
 type BrandId = string & { __tableName: "brands" };
 
-const PERIOD_DURATION: Record<string, number> = {
-  weekly: 7 * 24 * 60 * 60 * 1000,
-  monthly: 30 * 24 * 60 * 60 * 1000,
-  quarterly: 90 * 24 * 60 * 60 * 1000,
-  annual: 365 * 24 * 60 * 60 * 1000,
-};
+function periodEndFor(period: string, start: number): number {
+  const d = new Date(start);
+  if (period === "monthly")
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+  if (period === "quarterly")
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 3, 1);
+  if (period === "annual")
+    return Date.UTC(d.getUTCFullYear() + 1, 0, 1);
+  // weekly
+  return start + 7 * 24 * 60 * 60 * 1000;
+}
 
 // Query: fetch a single report by its ID
 export const getReportById = query({
@@ -140,8 +145,8 @@ export const generateSnapshot = action({
     });
     if (existing) return existing._id as string;
 
-    // 2. Compute period window
-    const periodEnd = args.periodStart + PERIOD_DURATION[args.period];
+    // 2. Compute period window using calendar arithmetic to avoid boundary drift
+    const periodEnd = periodEndFor(args.period, args.periodStart);
 
     // 3. Fetch data in parallel
     const [salesRecords, activityRecords, highlights] = await Promise.all([

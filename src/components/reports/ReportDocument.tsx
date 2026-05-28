@@ -25,12 +25,13 @@ function formatRevenue(cents: number): string {
 
 function formatPeriodLabel(period: string, periodStart: number): string {
   const date = new Date(periodStart);
-  const month = date.toLocaleString("en-GB", { month: "long", year: "numeric" });
+  const month = date.toLocaleString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+  const weekOf = date.toLocaleDateString("en-GB", { timeZone: "UTC" });
   const labels: Record<string, string> = {
-    weekly: `Week of ${date.toLocaleDateString("en-GB")}`,
+    weekly: `Week of ${weekOf}`,
     monthly: month,
-    quarterly: `Q${Math.ceil((date.getMonth() + 1) / 3)} ${date.getFullYear()}`,
-    annual: `${date.getFullYear()} Annual Report`,
+    quarterly: `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${date.getUTCFullYear()}`,
+    annual: `${date.getUTCFullYear()} Annual Report`,
   };
   return labels[period as keyof typeof labels] ?? period;
 }
@@ -40,6 +41,7 @@ function formatGeneratedDate(ts: number): string {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 

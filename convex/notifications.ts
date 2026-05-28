@@ -25,14 +25,15 @@ function formatMonthLabel(ts: number): string {
   return new Date(ts).toLocaleString("en-US", {
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 
 /** Format a Unix timestamp (ms) into "Q# YYYY", e.g. "Q2 2026" */
 function formatQuarterLabel(ts: number): string {
   const d = new Date(ts);
-  const quarter = Math.floor(d.getMonth() / 3) + 1;
-  return `Q${quarter} ${d.getFullYear()}`;
+  const quarter = Math.floor(d.getUTCMonth() / 3) + 1;
+  return `Q${quarter} ${d.getUTCFullYear()}`;
 }
 
 // ─── Internal mutation: insert a notifications record ────────────────────────
